@@ -1,0 +1,25 @@
+services:
+  diary:
+    container_name: "diary"
+    build:
+      dockerfile: ./Dockerfile
+      context: .
+    command: "streamlit run ./vcondiary.py --server.port 8501 --server.baseUrlPath /diary"
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.diary.rule=Host(`${DNS_HOST}`) && PathPrefix(`/diary`)"
+      - "traefik.http.routers.diary.entrypoints=websecure"
+      - "traefik.http.routers.diary.tls.certresolver=myresolver"
+      - "traefik.http.routers.diary.middlewares=auth-middleware@file"
+      - "traefik.http.services.diary.loadbalancer.server.port=8501"
+    networks:
+      - conserver
+    restart: unless-stopped
+
+# docker-compose-1.yml
+networks:
+  conserver:
+    external: true
