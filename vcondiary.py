@@ -19,7 +19,7 @@ import tempfile
 import logging
 from datetime import datetime, timedelta
 import pytz
-from openai import OpenAI
+#from openai import OpenAI
 import os
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -31,6 +31,7 @@ import time
 import fastapi
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+import vcon
 
 openai.api_key = st.secrets['openai']['api_key']
 
@@ -44,17 +45,6 @@ logger = logging.getLogger(__name__)
 
 # Set up Streamlit app title and intro
 st.title("Diary")
-
-# Initialize MongoDB connection
-###
-client = MongoClient("mongodb://localhost:27017/")  # Update with your actual MongoDB URI
-db = client["vcons"]  # Replace with your actual database name
-
-def connect_to_db():
-    return MongoClient("mongodb://localhost:27017/")
-
-client = connect_to_db()
-###
 
 mongo_url = st.secrets["mongo_db"]["url"]
 mongo_db = st.secrets["mongo_db"]["db"]
