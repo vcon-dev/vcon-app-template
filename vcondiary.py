@@ -32,6 +32,8 @@ import fastapi
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import vcon
+import re
+import hashlib
 
 openai.api_key = st.secrets['openai']['api_key']
 
@@ -120,24 +122,24 @@ def get_diary_dates() -> list:
 # Function to generate daily summary using openai chat completion
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def generate_daily_summary(transcripts: list[str]) -> str:
-    """
-    Generate a structured summary of conversation transcripts using OpenAI's GPT.
-    Results are cached for 1 hour to minimize API calls.
-
-    Args:
-        transcripts (list[str]): List of conversation transcripts to analyze
-
-    Returns:
-        dict: Dictionary containing three sections for column display
-    """
     try:
-        # Create a cache key from the transcripts
         logger.info(f"Generating summary for {len(transcripts)} transcripts")
-        cache_key = '\n'.join(transcripts)
-        
-        logger.info(f"Cache key: {cache_key}")
-        prompt = """Analyze these conversations and provide three distinct sections:
 
+        # Debugging: Check for non-string items
+        for i, item in enumerate(transcripts):
+            if not isinstance(item, str):
+                logger.warning(f"Non-string item found in transcripts[{i}]: {type(item)} - {item}")
+
+        # Convert non-string items to strings
+        clean_transcripts = [str(item) if not isinstance(item, str) else item for item in transcripts]
+
+        # Generate a stable cache key
+        cache_key = hashlib.md5("".join(clean_transcripts).encode()).hexdigest()
+
+        logger.info(f"Cache key: {cache_key}")
+
+        # Prepare OpenAI prompt
+        prompt = """Analyze these conversations and provide three distinct sections:
         1. Overview:
         [Provide a brief overview of the day's conversations and general mood/tone]
 
@@ -149,13 +151,14 @@ def generate_daily_summary(transcripts: list[str]) -> str:
 
         Format each section independently and be concise but thorough.
         Here are the transcripts to analyze:
-        {}""".format(cache_key)
+        {}""".format("\n".join(clean_transcripts))
         
         logger.info(f"Sending prompt to OpenAI: {prompt}")
+
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # Ensure that the correct model version is used
+            model="gpt-4",
             messages=[
-                {"role": "system", "content": """You are a business-focused diary assistant. 
+                {"role": "system", "content": """You are a business-focused diary assistant.
                 Analyze conversations and separate insights into three distinct categories:
                 1. Overview - general summary and tone
                 2. Action Items - specific tasks and follow-ups
@@ -164,23 +167,39 @@ def generate_daily_summary(transcripts: list[str]) -> str:
                 {"role": "user", "content": prompt}
             ]
         )
-        
-        # Split the response into three sections
-        content = response['choices'][0]['message']['content']
-        logger.info(f"Generated summary: {content}")
-        sections = content.split('\n\n')
-        
-        return {
-            "Overview": sections[0].replace("1. Overview:", ""),
-            "Action Items": sections[1].replace("2. Action Items:", ""),
-            "Opportunities": sections[2].replace("3. Opportunities:", "")
-        }
+
+        # Ensure we have a valid response
+        if 'choices' not in response or not response['choices']:
+            logger.error("No response choices received from OpenAI")
+            return {"Overview": "Error: No response received", "Action Items": "Not available", "Opportunities": "Not available"}
+
+        # Check Content Format Before Parsing
+        content = response['choices'][0]['message'].get('content', '').strip()
+
+        if not content:
+            logger.error("Empty response content")
+            return {"Overview": "Error: Empty response", "Action Items": "Not available", "Opportunities": "Not available"}
+
+        logger.info(f"Raw OpenAI response: {content}")
+
+        # Improved section parsing
+        sections = {"Overview": "", "Action Items": "", "Opportunities": ""}
+        matches = re.findall(r"(\d+)\.\s*(\w+):\s*(.*)", content)
+
+        for match in matches:
+            number, title, text = match
+            if title in sections:
+                sections[title] = text.strip()
+
+        return sections
+
     except Exception as e:
         return {
             "Overview": f"Error generating summary: {e}",
             "Action Items": "Not available",
             "Opportunities": "Not available"
         }
+
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def generate_call_summary(transcript: str) -> str:
