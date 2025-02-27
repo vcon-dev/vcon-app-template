@@ -32,6 +32,7 @@ import fastapi
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import vcon
+from vcon import Vcon
 import re
 import hashlib
 
@@ -392,43 +393,45 @@ def get_pdf_download_link(pdf_path: str, filename: str) -> str:
 
 def process_call_logs(results) -> list[dict]:
     """
-    Process MongoDB call log results into structured data.
-    Results are cached for 1 hour to minimize database and API calls.
+    Process MongoDB call log results into structured data using the vCon library.
 
     Args:
         results: MongoDB cursor containing call log documents
 
     Returns:
-        list[dict]: Processed call logs with calculated duration, transcripts, and summaries
+        list[dict]: Processed call logs with timestamps, parties, and transcripts
     """
     call_logs = []
-    for result in results:  # Iterate directly over the cursor
-        # Indicate the result is being processed by id
-        logger.info(f"Processing result with id: {result['_id']}")
-        
-        # Convert ObjectId to string for serialization
-        result['_id'] = str(result['_id'])
-        # Extract basic call information
-        created_at = result["created_at"]
-        to_name = result["parties"][0].get("tel", None)
-        from_name = result["parties"][1].get("tel", None)
-
-        # Extract and process transcript
-        analysis_data = result.get("analysis", [])
-        transcript = "No transcript available"
-        for analysis in analysis_data:
-            if analysis.get("type") == "transcript":
-                transcript = analysis.get("body", "No transcript available")
-
-        call_logs.append({
-            "when": created_at,
-            "to": to_name,
-            "from": from_name,
-            "transcript": transcript,
-        })
     
-    # Sort call logs by timestamp, newest first
-    call_logs.sort(key=lambda x: x['when'], reverse=True)
+    for result in results:
+        try:
+            # Convert MongoDB document to a vCon object
+            vcon_obj = Vcon.from_json(result)
+
+            # Extract call metadata
+            created_at = vcon_obj.created_at
+            to_name = vcon_obj.parties[0].get("tel", "Unknown")
+            from_name = vcon_obj.parties[1].get("tel", "Unknown")
+
+            # Extract transcript (if available)
+            transcript = "No transcript available"
+            for analysis in vcon_obj.analysis:
+                if analysis.get("type") == "transcript":
+                    transcript = analysis.get("body", transcript)
+
+            # Append structured data
+            call_logs.append({
+                "when": created_at,
+                "to": to_name,
+                "from": from_name,
+                "transcript": transcript,
+            })
+
+        except Exception as e:
+            logger.error(f"Error processing vCon: {str(e)}", exc_info=True)
+
+    # Sort call logs by timestamp (newest first)
+    call_logs.sort(key=lambda x: x["when"], reverse=True)
     return call_logs
 
 # Process all call logs
