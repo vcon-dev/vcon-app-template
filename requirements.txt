@@ -1,0 +1,9 @@
+streamlit
+pymongo
+pandas
+openai
+requests
+reportlab
+fastapi
+vcon
+pytz

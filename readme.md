@@ -26,6 +26,12 @@ source ~/venvs/vcondiary/bin/activate
 
 ### 2️⃣ Upgrade Pip & Install Dependencies
 
+
+```sh
+git clone https://github.com/vcon-dev/vcon-app-template
+cd vcon-dev/vcon-app-template
+```
+
 ```sh
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -63,7 +69,13 @@ auth_token = "your-auth-token"
 ### 5️⃣ Run the Application
 
 ```sh
-python3 -m streamlit run vcondiary.py
+streamlit run vcondiary.py
+```
+
+If running in Poetry:
+
+```sh
+poetry run streamlit run vcondiary.py
 ```
 
 If issues persist, explicitly specify Python:
