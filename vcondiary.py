@@ -9,7 +9,9 @@ It helps track customer interactions, complaints, sales opportunities, and actio
 import streamlit as st
 from pymongo import MongoClient
 import pandas as pd
-import openai
+from openai import OpenAI
+
+client = OpenAI(api_key=st.secrets['openai']['api_key'])
 import json
 import requests
 import wave
@@ -19,7 +21,7 @@ import tempfile
 import logging
 from datetime import datetime, timedelta
 import pytz
-#from openai import OpenAI
+from openai import OpenAI
 import os
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -36,7 +38,6 @@ from vcon import Vcon
 import re
 import hashlib
 
-openai.api_key = st.secrets['openai']['api_key']
 
 # Configure logging with environment variable, defaulting to INFO if not set
 logging.basicConfig(
@@ -74,7 +75,7 @@ def save_diary_entry(date: str, summary: dict, call_details: list) -> None:
             'call_details': call_details,
             'updated_at': datetime.now(pytz.utc)
         }
-        
+
         # Upsert the diary entry
         diary_collection.update_one(
             {'date': date},
@@ -153,10 +154,10 @@ def generate_daily_summary(transcripts: list[str]) -> str:
         Format each section independently and be concise but thorough.
         Here are the transcripts to analyze:
         {}""".format("\n".join(clean_transcripts))
-        
-        logger.info(f"Sending prompt to OpenAI: {prompt}")
 
-        response = openai.ChatCompletion.create(
+        logger.info(f"Sending prompt to OpenAI: {prompt}")
+        client = OpenAI()
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": """You are a business-focused diary assistant.
@@ -219,12 +220,11 @@ def generate_call_summary(transcript: str) -> str:
 
         {transcript}
         """
-        completion = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
-            ])
+        completion = client.chat.completions.create(model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ])
 
         return completion.choices[0].message.content
     except Exception as e:
@@ -246,23 +246,23 @@ def get_relative_time(call_time: str) -> str:
     try:
         utc = pytz.utc
         est = pytz.timezone('US/Eastern')
-        
+
         # Parse the ISO format string directly
         call_datetime_utc = datetime.fromisoformat(call_time)
         logger.info(f"Parsed UTC time: {call_datetime_utc}")
-        
+
         # Log timezone conversion
         call_datetime_est = call_datetime_utc.astimezone(est)
         logger.info(f"Converted to EST: {call_datetime_est}")
-        
+
         # Log current time
         now_est = datetime.now(est)
         logger.info(f"Current EST time: {now_est}")
-        
+
         # Log time difference
         diff = now_est - call_datetime_est
         logger.info(f"Time difference: {diff} (days: {diff.days}, seconds: {diff.seconds})")
-        
+
         # Calculate relative time with logging
         if diff.days > 0:
             result = f"{diff.days} days ago"
@@ -272,10 +272,10 @@ def get_relative_time(call_time: str) -> str:
             result = f"{diff.seconds // 60} minutes ago"
         else:
             result = "just now"
-            
+
         logger.info(f"Calculated relative time: {result}")
         return result
-        
+
     except Exception as e:
         logger.error(f"Error calculating relative time: {str(e)}", exc_info=True)
         return "time unknown"
@@ -295,7 +295,7 @@ def create_diary_pdf(diary_entry: dict, date_str: str) -> str:
         # Create a temporary file for the PDF
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
             pdf_path = tmp_file.name
-        
+
         # Set up the document
         doc = SimpleDocTemplate(
             pdf_path,
@@ -305,36 +305,36 @@ def create_diary_pdf(diary_entry: dict, date_str: str) -> str:
             topMargin=72,
             bottomMargin=72
         )
-        
+
         # Get styles
         styles = getSampleStyleSheet()
         title_style = styles['Heading1']
         heading_style = styles['Heading2']
         normal_style = styles['Normal']
-        
+
         # Create the story (content)
         story = []
-        
+
         # Add title
         display_date = datetime.strptime(date_str, "%Y-%m-%d").strftime("%B %d, %Y")
         story.append(Paragraph(f"Diary Entry - {display_date}", title_style))
         story.append(Spacer(1, 12))
-        
+
         # Add Overview section
         story.append(Paragraph("Overview", heading_style))
         story.append(Paragraph(diary_entry['summary']['Overview'], normal_style))
         story.append(Spacer(1, 12))
-        
+
         # Add Action Items section
         story.append(Paragraph("Action Items", heading_style))
         story.append(Paragraph(diary_entry['summary']['Action Items'], normal_style))
         story.append(Spacer(1, 12))
-        
+
         # Add Opportunities section
         story.append(Paragraph("Opportunities", heading_style))
         story.append(Paragraph(diary_entry['summary']['Opportunities'], normal_style))
         story.append(Spacer(1, 12))
-        
+
         # Add Call Details section
         story.append(Paragraph("Call Details", heading_style))
         if diary_entry['call_details']:
@@ -342,7 +342,7 @@ def create_diary_pdf(diary_entry: dict, date_str: str) -> str:
             table_data = [['Time', 'Caller', 'Summary']]
             for call in diary_entry['call_details']:
                 table_data.append([call['Time'], call['Caller'], call['Summary']])
-            
+
             # Create table
             table = Table(table_data, colWidths=[1*inch, 1.5*inch, 4*inch])
             table.setStyle(TableStyle([
@@ -362,11 +362,11 @@ def create_diary_pdf(diary_entry: dict, date_str: str) -> str:
             story.append(table)
         else:
             story.append(Paragraph("No calls recorded on this date.", normal_style))
-        
+
         # Build PDF
         doc.build(story)
         return pdf_path
-        
+
     except Exception as e:
         logger.error(f"Error creating PDF: {str(e)}", exc_info=True)
         raise
@@ -402,16 +402,18 @@ def process_call_logs(results) -> list[dict]:
         list[dict]: Processed call logs with timestamps, parties, and transcripts
     """
     call_logs = []
-    
+
     for result in results:
         try:
             # Convert MongoDB document to a vCon object
-            vcon_obj = Vcon.from_json(result)
+            del result["_id"]
+            vcon_obj = Vcon(result)
 
             # Extract call metadata
             created_at = vcon_obj.created_at
-            to_name = vcon_obj.parties[0].get("tel", "Unknown")
-            from_name = vcon_obj.parties[1].get("tel", "Unknown")
+            parties = vcon_obj.parties
+            to_name = parties[0].tel
+            from_name = parties[1].tel
 
             # Extract transcript (if available)
             transcript = "No transcript available"
@@ -439,7 +441,7 @@ try:
     logger.info("Fetching records from MongoDB...")
     results = dbCollection.find()
     call_logs = process_call_logs(results)  # Pass the cursor directly
-    
+
     # Filter call logs for today's date using EST
     est = pytz.timezone('US/Eastern')
     today_est = datetime.now(est).strftime("%Y-%m-%d")
@@ -448,7 +450,7 @@ try:
         if datetime.fromisoformat(call['when']).astimezone(est).strftime("%Y-%m-%d") == today_est
     ]
     logger.info(f"Filtered {len(call_logs)} call logs for today's date")
-    
+
 except Exception as e:
     logger.error(f"Error processing MongoDB records: {str(e)}", exc_info=True)
     st.error("Failed to load call records. Please check the logs.")
@@ -457,7 +459,7 @@ except Exception as e:
 try:
     # Log call logs info
     logger.info(f"Processing {len(call_logs)} call records")
-    
+
     # Group conversations by date
     conversations_by_date = {}
     for call in call_logs:
@@ -468,11 +470,11 @@ try:
         if date not in conversations_by_date:
             conversations_by_date[date] = []
         conversations_by_date[date].append(call)
-    
+
     # Add date selector in sidebar
     st.sidebar.title("Diary Navigation")
     available_dates = get_diary_dates()
-    
+
     if not available_dates:
         selected_date = today_est
     else:
@@ -482,15 +484,15 @@ try:
             format_func=lambda x: datetime.strptime(x, "%Y-%m-%d").strftime("%B %d, %Y"),
             index=0 if today_est in available_dates else None
         )
-    
+
     # Process today's logs if viewing today
     if selected_date == today_est:
         daily_calls = conversations_by_date.get(today_est, [])
         daily_transcripts = [call['transcript'] for call in daily_calls]
-        
+
         if daily_transcripts:
             summary = generate_daily_summary(daily_transcripts)
-            
+
             # Generate call details
             call_details = []
             for call in daily_calls:
@@ -501,7 +503,7 @@ try:
                     "Caller": call['from'],
                     "Summary": call_summary
                 })
-            
+
             # Save today's diary
             save_diary_entry(today_est, summary, call_details)
         else:
@@ -511,31 +513,31 @@ try:
                 "Opportunities": "None"
             }
             call_details = []
-    
+
     # Retrieve and display selected diary entry
     diary_entry = get_diary_entry(selected_date)
-    
+
     if diary_entry:
         display_date = datetime.strptime(selected_date, "%Y-%m-%d").strftime("%B %d, %Y")
         st.write(f"### {display_date}")
-        
+
         summary = diary_entry['summary']
-        
+
         # Display overview in full width
         st.markdown("#### Overview")
         st.markdown(summary["Overview"])
-        
+
         # Create two columns for Action Items and Opportunities
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.markdown("#### Action Items")
             st.markdown(summary["Action Items"])
-            
+
         with col2:
             st.markdown("#### Opportunities")
             st.markdown(summary["Opportunities"])
-        
+
         # Display table of calls
         st.write("### Call Details")
         if diary_entry['call_details']:
@@ -552,7 +554,7 @@ try:
                     filename = f"diary_{selected_date}.pdf"
                     pdf_link = get_pdf_download_link(pdf_path, filename)
                     st.markdown(pdf_link, unsafe_allow_html=True)
-                    
+
                     # Clean up the temporary file after a delay
                     def cleanup_pdf():
                         time.sleep(300)  # Wait 5 minutes
@@ -560,7 +562,7 @@ try:
                             os.remove(pdf_path)
                         except:
                             pass
-                    
+
                     import threading
                     threading.Thread(target=cleanup_pdf).start()
             except Exception as e:
@@ -585,11 +587,11 @@ def recreate_diary_entry(date: str) -> None:
         est = pytz.timezone('US/Eastern')
         start_date = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=est)
         end_date = start_date + timedelta(days=1)
-        
+
         # Convert to UTC for MongoDB query
         start_date_utc = start_date.astimezone(pytz.UTC)
         end_date_utc = end_date.astimezone(pytz.UTC)
-        
+
         # Query calls for the date
         results = dbCollection.find({
             "created_at": {
@@ -597,13 +599,13 @@ def recreate_diary_entry(date: str) -> None:
                 "$lt": end_date_utc.isoformat()
             }
         })
-        
+
         daily_calls = process_call_logs(results)
         daily_transcripts = [call['transcript'] for call in daily_calls]
-        
+
         if daily_transcripts:
             summary = generate_daily_summary(daily_transcripts)
-            
+
             # Generate call details
             call_details = []
             for call in daily_calls:
@@ -614,7 +616,7 @@ def recreate_diary_entry(date: str) -> None:
                     "Caller": call['from'],
                     "Summary": call_summary
                 })
-            
+
             # Save recreated diary
             save_diary_entry(date, summary, call_details)
             return True
@@ -627,7 +629,7 @@ def recreate_diary_entry(date: str) -> None:
 # Admin Section
 with st.sidebar.expander("Admin", expanded=False):
     st.markdown("### Admin Controls")
-    
+
     # Date range selector for recreation
     start_date = st.date_input(
         "Start Date",
@@ -637,13 +639,13 @@ with st.sidebar.expander("Admin", expanded=False):
         "End Date",
         value=datetime.now(pytz.timezone('US/Eastern'))
     )
-    
+
     if st.button("Recreate Diaries"):
         progress_bar = st.progress(0)
         current_date = start_date
         total_days = (end_date - start_date).days + 1
         processed = 0
-        
+
         while current_date <= end_date:
             date_str = current_date.strftime("%Y-%m-%d")
             success = recreate_diary_entry(date_str)
@@ -651,16 +653,16 @@ with st.sidebar.expander("Admin", expanded=False):
                 st.sidebar.success(f"Recreated diary for {date_str}")
             else:
                 st.sidebar.info(f"No calls found for {date_str}")
-            
+
             current_date += timedelta(days=1)
             processed += 1
             progress_bar.progress(processed / total_days)
-        
+
         st.sidebar.success("Diary recreation completed!")
 
 # Create FastAPI app for health checks
 app = FastAPI()
 
 @app.get("/_stcore/health")
-async def health_check():
+async def health_check(): # The number of the beast resides here
     return JSONResponse({"status": "ok"})
