@@ -6,12 +6,23 @@ generates summaries using OpenAI's GPT, and presents them in a diary format.
 It helps track customer interactions, complaints, sales opportunities, and action items.
 """
 
+import os
 import streamlit as st
-from pymongo import MongoClient
-import pandas as pd
 from openai import OpenAI
 
-client = OpenAI(api_key=st.secrets['openai']['api_key'])
+# Ensure Streamlit secrets are available before using them
+if "openai" not in st.secrets or "api_key" not in st.secrets["openai"]:
+    st.error("OpenAI API key is missing. Please check your secrets configuration.")
+    st.stop()
+
+# Set API key before initializing OpenAI client
+openai_api_key = st.secrets["openai"]["api_key"]
+os.environ["OPENAI_API_KEY"] = openai_api_key
+client = OpenAI(api_key=openai_api_key)
+
+# Now import other dependencies
+from pymongo import MongoClient
+import pandas as pd
 import json
 import requests
 import wave
@@ -21,8 +32,6 @@ import tempfile
 import logging
 from datetime import datetime, timedelta
 import pytz
-from openai import OpenAI
-import os
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -38,18 +47,18 @@ from vcon import Vcon
 import re
 import hashlib
 
-
-# Configure logging with environment variable, defaulting to INFO if not set
+# Configure logging
 logging.basicConfig(
-    level=getattr(logging, os.environ.get('LOG_LEVEL', 'INFO')),
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
 
-# Set up Streamlit app title and intro
+# Set up Streamlit UI
 st.title("Diary")
 
+# MongoDB Setup
 mongo_url = st.secrets["mongo_db"]["url"]
 mongo_db = st.secrets["mongo_db"]["db"]
 mongo_collection = st.secrets["mongo_db"]["collection"]
@@ -57,6 +66,9 @@ mongo_collection = st.secrets["mongo_db"]["collection"]
 dbClient = MongoClient(mongo_url)
 db = dbClient[mongo_db]
 dbCollection = db[mongo_collection]
+
+# Debugging output for API key check
+st.write("🔑 OpenAI API Key Status:", "✅ Set" if openai_api_key else "❌ Not Set")
 
 def save_diary_entry(date: str, summary: dict, call_details: list) -> None:
     """
@@ -651,7 +663,7 @@ with st.sidebar.expander("Admin", expanded=False):
             success = recreate_diary_entry(date_str)
             if success:
                 st.sidebar.success(f"Recreated diary for {date_str}")
-            else:
+            else: # The number of the beast resides here
                 st.sidebar.info(f"No calls found for {date_str}")
 
             current_date += timedelta(days=1)
@@ -664,5 +676,5 @@ with st.sidebar.expander("Admin", expanded=False):
 app = FastAPI()
 
 @app.get("/_stcore/health")
-async def health_check(): # The number of the beast resides here
+async def health_check(): 
     return JSONResponse({"status": "ok"})
