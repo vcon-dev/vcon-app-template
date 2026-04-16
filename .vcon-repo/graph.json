@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0.0",
+  "repo": "vcon-app-template",
+  "repo_version": "0.1.0",
+  "archetype": "python-library",
+  "generated_at": "2026-04-16T15:15:45.455926+00:00",
+  "stats": {
+    "node_count": 22,
+    "edge_count": 0
+  },
+  "nodes": [
+    {
+      "id": "dependency:vcon",
+      "type": "dependency",
+      "name": "vcon",
+      "file": "pyproject.toml"
+    },
+    {
+      "id": "dependency:fastapi",
+      "type": "dependency",
+      "name": "fastapi",
+      "file": "pyproject.toml"
+    },
+    {
+      "id": "dependency:pandas",
+      "type": "dependency",
+      "name": "pandas",
+      "file": "pyproject.toml"
+    },
+    {
+      "id": "function:extract_suggestions_from_transcript",
+      "type": "function",
+      "name": "extract_suggestions_from_transcript",
+      "file": "suggestionbox.py",
+      "line": 40
+    },
+    {
+      "id": "function:summarize_suggestions",
+      "type": "function",
+      "name": "summarize_suggestions",
+      "file": "suggestionbox.py",
+      "line": 68
+    },
+    {
+      "id": "function:get_suggestions",
+      "type": "function",
+      "name": "get_suggestions",
+      "file": "suggestionbox.py",
+      "line": 88
+    },
+    {
+      "id": "function:run_fastapi",
+      "type": "function",
+      "name": "run_fastapi",
+      "file": "suggestionbox.py",
+      "line": 111
+    },
+    {
+      "id": "function:fetch_suggestions",
+      "type": "function",
+      "name": "fetch_suggestions",
+      "file": "suggestionbox.py",
+      "line": 123
+    },
+    {
+      "id": "function:save_diary_entry",
+      "type": "function",
+      "name": "save_diary_entry",
+      "file": "vcondiary.py",
+      "line": 73
+    },
+    {
+      "id": "function:get_diary_entry",
+      "type": "function",
+      "name": "get_diary_entry",
+      "file": "vcondiary.py",
+      "line": 104
+    },
+    {
+      "id": "function:get_diary_dates",
+      "type": "function",
+      "name": "get_diary_dates",
+      "file": "vcondiary.py",
+      "line": 121
+    },
+    {
+      "id": "function:generate_daily_summary",
+      "type": "function",
+      "name": "generate_daily_summary",
+      "file": "vcondiary.py",
+      "line": 138
+    },
+    {
+      "id": "function:generate_call_summary",
+      "type": "function",
+      "name": "generate_call_summary",
+      "file": "vcondiary.py",
+      "line": 219
+    },
+    {
+      "id": "function:get_relative_time",
+      "type": "function",
+      "name": "get_relative_time",
+      "file": "vcondiary.py",
+      "line": 247
+    },
+    {
+      "id": "function:create_diary_pdf",
+      "type": "function",
+      "name": "create_diary_pdf",
+      "file": "vcondiary.py",
+      "line": 295
+    },
+    {
+      "id": "function:get_pdf_download_link",
+      "type": "function",
+      "name": "get_pdf_download_link",
+      "file": "vcondiary.py",
+      "line": 386
+    },
+    {
+      "id": "function:process_call_logs",
+      "type": "function",
+      "name": "process_call_logs",
+      "file": "vcondiary.py",
+      "line": 406
+    },
+    {
+      "id": "function:recreate_diary_entry",
+      "type": "function",
+      "name": "recreate_diary_entry",
+      "file": "vcondiary.py",
+      "line": 590
+    },
+    {
+      "id": "function:health_check",
+      "type": "function",
+      "name": "health_check",
+      "file": "vcondiary.py",
+      "line": 679
+    },
+    {
+      "id": "config:OPENAI_API_KEY",
+      "type": "config",
+      "name": "OPENAI_API_KEY",
+      "file": "vcondiary.py"
+    },
+    {
+      "id": "artifact:docker-image",
+      "type": "artifact",
+      "name": "Docker image",
+      "file": "Dockerfile"
+    },
+    {
+      "id": "document:readme-md",
+      "type": "document",
+      "name": "README.md",
+      "file": "README.md"
+    }
+  ],
+  "edges": [],
+  "subsystems": []
+}
