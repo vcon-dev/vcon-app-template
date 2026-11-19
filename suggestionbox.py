@@ -8,7 +8,8 @@ import streamlit as st
 import requests
 import threading
 import uvicorn
-import streamlit as st
+
+from vcon_reader import load_vcon, transcript_text, NO_TRANSCRIPT
 
 # ✅ Ensure OpenAI API Key is correctly retrieved
 openai_api_key = st.secrets["openai"]["api_key"]
@@ -92,8 +93,14 @@ def get_suggestions():
 
     # Extract suggestions from transcripts
     all_suggestions = []
-    for vcon in recent_vcons:
-        transcript = vcon.get("transcript", "")
+    for document in recent_vcons:
+        # A vCon has no top-level transcript; it is an analysis entry.
+        try:
+            transcript = transcript_text(load_vcon(document))
+        except Exception:
+            continue
+        if transcript == NO_TRANSCRIPT:
+            continue
         extracted_suggestions = extract_suggestions_from_transcript(transcript)
         all_suggestions.extend(extracted_suggestions)
 

@@ -8,7 +8,7 @@ vConDiary is a Streamlit-based application for managing and processing virtual c
 
 Before setting up vConDiary, ensure you have the following installed:
 
-- **Python 3.13.1** (Recommended, avoid system Python)
+- **Python 3.12 or later** (`vcon` 1.x requires 3.12; the Docker image and `pyproject.toml` use 3.12)
 - **Virtual Environment (venv)** for dependency management
 - **MongoDB** (Local or Remote)
 - **OpenSSL 1.1.1+** (Check with `python3 -c "import ssl; print(ssl.OPENSSL_VERSION)"`)
@@ -82,6 +82,23 @@ If issues persist, explicitly specify Python:
 
 ```sh
 ~/venvs/vcondiary/bin/python3 -m streamlit run vcondiary.py
+```
+
+## vCon versions
+
+The app reads vCons with `vcon>=1.0.3,<2` (draft-ietf-vcon-vcon-core-05,
+`"vcon": "0.5.0"`); release 1.0.0 moved to it from `vcon` 0.5.0. Stored vCons
+that declare `"0.4.0"` are migrated to 0.5.0 by the library when they are read,
+so both kinds show up in the diary. `vcon_reader.py` extracts each call's time,
+parties and transcript: party entries are dictionaries, and the transcript is
+taken from a `transcript` analysis (text or JSON body) or a `wtf_transcription`
+analysis (a WTF document). The suggestion box reads transcripts the same way.
+
+## Tests
+
+```sh
+pip install -r requirements.txt pytest
+pytest
 ```
 
 ## Troubleshooting

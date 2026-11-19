@@ -1,6 +1,6 @@
 [project]
 name = "diary"
-version = "0.1.0"
+version = "1.0.0"
 description = ""
 authors = [
     {name = "benjigifford",email = "benjamingifford8@gmail.com"}
@@ -8,7 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = "3.12.9"
 dependencies = [
-    "vcon (>=0.5.0,<0.6.0)",
+    "vcon (>=1.0.3,<2.0.0)",
     "fastapi (>=0.115.8,<0.116.0)",
     "pandas (>=2.2.3,<3.0.0)"
 ]
@@ -17,3 +17,7 @@ dependencies = [
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
