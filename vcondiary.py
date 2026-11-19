@@ -42,8 +42,7 @@ import time
 import fastapi
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-import vcon
-from vcon import Vcon
+from vcon_reader import call_log_entry
 import re
 import hashlib
 
@@ -417,29 +416,10 @@ def process_call_logs(results) -> list[dict]:
 
     for result in results:
         try:
-            # Convert MongoDB document to a vCon object
-            del result["_id"]
-            vcon_obj = Vcon(result)
-
-            # Extract call metadata
-            created_at = vcon_obj.created_at
-            parties = vcon_obj.parties
-            to_name = parties[0].tel
-            from_name = parties[1].tel
-
-            # Extract transcript (if available)
-            transcript = "No transcript available"
-            for analysis in vcon_obj.analysis:
-                if analysis.get("type") == "transcript":
-                    transcript = analysis.get("body", transcript)
-
-            # Append structured data
-            call_logs.append({
-                "when": created_at,
-                "to": to_name,
-                "from": from_name,
-                "transcript": transcript,
-            })
+            # Convert the MongoDB document to a vCon (vcon-lib 1.x migrates
+            # 0.4.0 vCons to 0.5.0 on load) and extract the call metadata and
+            # transcript. See vcon_reader.py.
+            call_logs.append(call_log_entry(result))
 
         except Exception as e:
             logger.error(f"Error processing vCon: {str(e)}", exc_info=True)

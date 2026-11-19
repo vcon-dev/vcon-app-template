@@ -11,7 +11,7 @@ COPY . /app
 RUN apt-get update && apt-get install -y gcc python3-dev
 RUN apt-get update && apt-get install -y wget
 
-RUN pip install --no-cache-dir streamlit pandas pymongo fpdf openai reportlab pytz fastapi
+RUN pip install --no-cache-dir streamlit pandas pymongo fpdf openai reportlab pytz fastapi "vcon>=1.0.3,<2"
 
 EXPOSE 8501
 

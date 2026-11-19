@@ -5,5 +5,5 @@ openai
 requests
 reportlab
 fastapi
-vcon<1
+vcon>=1.0.3,<2
 pytz
